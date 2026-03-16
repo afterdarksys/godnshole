@@ -1,0 +1,30 @@
+# Binaries
+dns-exfil-server
+dns-exfil-client
+dns-tunnel-server
+dns-tunnel-client
+ssh-downgrade
+
+# Go build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Output files
+*.dat
+captured.*
+exfiltrated.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
